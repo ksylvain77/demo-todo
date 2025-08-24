@@ -122,31 +122,41 @@ class TestSuite:
         api_tests = {
             "health_endpoint": {
                 "endpoint": "/health",
-                "expected_fields": ["status"]  # Customize
+                "expected_fields": ["status"]
             },
-            # Add more API tests here
+            "input_tasks_endpoint": {
+                "endpoint": "/api/tasks",
+                "method": "POST",
+                "payload": {"tasks": ["Task A", "Task B"]},
+                "expected_fields": ["status", "timestamp", "data"],
+                "expected_data_length": 2
+            }
         }
         
         for test_name, test_config in api_tests.items():
             self.log(f"Testing {test_config['endpoint']}...")
-            
             try:
-                response = requests.get(f"{self.base_url}{test_config['endpoint']}", timeout=10)
-                
+                method = test_config.get("method", "GET")
+                url = f"{self.base_url}{test_config['endpoint']}"
+                if method == "POST":
+                    response = requests.post(url, json=test_config.get("payload", {}), timeout=10)
+                else:
+                    response = requests.get(url, timeout=10)
                 if response.status_code != 200:
                     raise Exception(f"HTTP {response.status_code}")
-                
                 data = response.json()
-                
-                # Check expected fields
                 missing_fields = []
                 for field in test_config['expected_fields']:
                     if field not in data:
                         missing_fields.append(field)
-                
                 if missing_fields:
                     raise Exception(f"Missing fields: {missing_fields}")
-                
+                # Additional checks for /api/tasks
+                if test_name == "input_tasks_endpoint":
+                    if not isinstance(data["data"], list) or len(data["data"]) != test_config["expected_data_length"]:
+                        raise Exception("Returned data list does not match expected length")
+                    if data["data"][0]["description"] != "Task A":
+                        raise Exception("First task description mismatch")
                 self.results["phase_2_api"][test_name] = {
                     "success": True,
                     "endpoint": test_config['endpoint'],
@@ -155,7 +165,6 @@ class TestSuite:
                     "details": f"✅ All {len(test_config['expected_fields'])} fields present"
                 }
                 self.log(f"✅ {test_config['endpoint']}: PASSED", "PASS")
-                
             except Exception as e:
                 self.results["phase_2_api"][test_name] = {
                     "success": False,
@@ -174,26 +183,40 @@ class TestSuite:
             "main_contract": {
                 "api_endpoint": "/health",
                 "expected_structure": {
-                    "status": "string"  # Customize
+                    "status": "string"
                 },
                 "frontend_expectations": [
-                    "data.status"  # Customize
+                    "data.status"
                 ]
             },
-            # Add more contract tests here
+            "input_tasks_contract": {
+                "api_endpoint": "/api/tasks",
+                "method": "POST",
+                "payload": {"tasks": ["Contract Test"]},
+                "expected_structure": {
+                    "status": "string",
+                    "timestamp": "string",
+                    "data": "list"
+                },
+                "frontend_expectations": [
+                    "data.data"
+                ]
+            }
         }
         
         for test_name, test_config in contract_tests.items():
             self.log(f"Validating {test_config['api_endpoint']} contract...")
             
             try:
-                response = requests.get(f"{self.base_url}{test_config['api_endpoint']}", timeout=10)
+                method = test_config.get("method", "GET")
+                if method == "POST":
+                    response = requests.post(f"{self.base_url}{test_config['api_endpoint']}", json=test_config.get("payload", {}), timeout=10)
+                else:
+                    response = requests.get(f"{self.base_url}{test_config['api_endpoint']}", timeout=10)
                 data = response.json()
-                
                 # Validate structure
                 missing_fields = []
                 for field_path, expected_type in test_config['expected_structure'].items():
-                    # Simple field validation - extend as needed
                     if '.' in field_path:
                         parts = field_path.split('.')
                         current = data
@@ -205,14 +228,14 @@ class TestSuite:
                     else:
                         if field_path not in data:
                             missing_fields.append(field_path)
-                
+                        elif expected_type == "list" and not isinstance(data[field_path], list):
+                            missing_fields.append(field_path)
                 self.results["phase_2_5_contracts"][test_name] = {
                     "success": len(missing_fields) == 0,
                     "api_endpoint": test_config['api_endpoint'],
                     "missing_fields": missing_fields,
                     "sample_data": {k: str(v)[:50] for k, v in data.items() if k != 'error'}
                 }
-                
                 if missing_fields:
                     self.log(f"❌ {test_name}: CONTRACT INVALID - Missing: {missing_fields}", "FAIL")
                 else:

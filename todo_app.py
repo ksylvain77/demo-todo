@@ -15,10 +15,27 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "modules"))
 
 # Import your modules here
-from core import get_status
-from utils import get_timestamp
+from core import get_status, input_tasks
+from utils import get_timestamp, format_response
+from flask import request
 
 app = Flask(__name__)
+
+@app.route('/api/tasks', methods=['POST'])
+def api_input_tasks():
+    """
+    Accepts a JSON list of task descriptions and returns structured tasks.
+    Request body: {"tasks": ["task1", "task2", ...]}
+    Response: {"status": ..., "timestamp": ..., "data": [task_dicts]}
+    """
+    if not request.is_json:
+        return jsonify(format_response("Invalid or missing JSON", status="error")), 400
+    data = request.get_json()
+    tasks = data.get("tasks")
+    if not isinstance(tasks, list):
+        return jsonify(format_response("'tasks' must be a list", status="error")), 400
+    result = input_tasks(tasks)
+    return jsonify(format_response(result))
 
 @app.route('/health')
 def health():
