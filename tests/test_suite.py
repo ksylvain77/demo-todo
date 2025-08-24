@@ -8,6 +8,7 @@ import sys
 import os
 import requests
 import json
+import asyncio
 from datetime import datetime
 from typing import Dict, List, Tuple, Any
 
@@ -318,7 +319,8 @@ class TestSuite:
         # Basic frontend tests - extend with browser automation if needed
         frontend_tests = [
             ("page_load", self._test_page_load),
-            # Add more frontend tests here
+            ("web_ui_load", self._test_web_ui_load),
+            ("playwright_ui", self._test_playwright_ui),
         ]
         
         for test_name, test_func in frontend_tests:
@@ -346,6 +348,59 @@ class TestSuite:
                 }
                 self.log(f"❌ {test_name}: ERROR - {e}", "FAIL")
     
+    def _test_web_ui_load(self) -> Tuple[bool, str]:
+        """Test web UI loads with expected elements"""
+        try:
+            response = requests.get(f"{self.base_url}/", timeout=10)
+            if response.status_code != 200:
+                return False, f"HTTP {response.status_code}"
+            
+            content = response.text
+            required_elements = ["todo app", "Add Task", "taskInput", "loadTasks"]
+            missing_elements = [elem for elem in required_elements if elem.lower() not in content.lower()]
+            
+            if missing_elements:
+                return False, f"Missing UI elements: {missing_elements}"
+            
+            return True, "Web UI loaded with all required elements"
+        except Exception as e:
+            return False, str(e)
+
+    def _test_playwright_ui(self) -> Tuple[bool, str]:
+        """Test web UI with Playwright browser automation"""
+        try:
+            # Import here to avoid dependency issues if playwright not installed
+            from playwright.sync_api import sync_playwright
+            
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                
+                # Load the page
+                page.goto(f"{self.base_url}/")
+                
+                # Check title
+                title = page.title()
+                if "Todo App" not in title:
+                    return False, f"Wrong title: {title}"
+                
+                # Check key elements exist
+                add_button = page.locator("button:has-text('Add Task')")
+                task_input = page.locator("#taskInput")
+                
+                if not add_button.is_visible():
+                    return False, "Add Task button not visible"
+                if not task_input.is_visible():
+                    return False, "Task input field not visible"
+                
+                browser.close()
+                return True, "Playwright browser test passed"
+                
+        except ImportError:
+            return False, "Playwright not installed"
+        except Exception as e:
+            return False, str(e)
+
     def _test_page_load(self) -> Tuple[bool, str]:
         """Test main page loading"""
         try:

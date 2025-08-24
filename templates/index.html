@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Todo App</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      h1 {
+        color: #333;
+      }
+      .add-task {
+        margin-bottom: 30px;
+      }
+      .add-task input {
+        padding: 10px;
+        width: 300px;
+        margin-right: 10px;
+      }
+      .add-task button {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      .task-list {
+        list-style: none;
+        padding: 0;
+      }
+      .task-item {
+        padding: 10px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .task-completed {
+        background: #f8f9fa;
+        text-decoration: line-through;
+        color: #666;
+      }
+      .task-actions button {
+        margin-left: 10px;
+        padding: 5px 10px;
+        border: none;
+        cursor: pointer;
+      }
+      .complete-btn {
+        background: #28a745;
+        color: white;
+      }
+      .delete-btn {
+        background: #dc3545;
+        color: white;
+      }
+      .status {
+        margin: 20px 0;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🏠 Home Todo App</h1>
+
+    <div class="add-task">
+      <input
+        type="text"
+        id="taskInput"
+        placeholder="Add a new task..."
+        onkeypress="handleKeyPress(event)"
+      />
+      <button onclick="addTask()">Add Task</button>
+    </div>
+
+    <div class="status" id="status">Ready</div>
+
+    <ul class="task-list" id="taskList">
+      <!-- Tasks will be loaded here -->
+    </ul>
+
+    <script>
+      // Load tasks when page loads
+      document.addEventListener('DOMContentLoaded', loadTasks);
+
+      async function loadTasks() {
+        try {
+          const response = await fetch('/api/tasks');
+          const result = await response.json();
+          if (result.status === 'success') {
+            displayTasks(result.data);
+            updateStatus('Tasks loaded');
+          } else {
+            updateStatus('Error loading tasks');
+          }
+        } catch (error) {
+          updateStatus('Error loading tasks');
+        }
+      }
+
+      function displayTasks(tasks) {
+        const taskList = document.getElementById('taskList');
+        taskList.innerHTML = '';
+
+        if (tasks.length === 0) {
+          taskList.innerHTML =
+            '<li style="text-align: center; color: #666;">No tasks yet. Add one above!</li>';
+          return;
+        }
+
+        tasks.forEach((task) => {
+          const li = document.createElement('li');
+          li.className = `task-item ${task.completed ? 'task-completed' : ''}`;
+          li.innerHTML = `
+                    <span>${task.description}</span>
+                    <div class="task-actions">
+                        ${
+                          !task.completed
+                            ? `<button class="complete-btn" onclick="completeTask(${task.id})">✓ Complete</button>`
+                            : ''
+                        }
+                        <button class="delete-btn" onclick="deleteTask(${
+                          task.id
+                        })">✗ Delete</button>
+                    </div>
+                `;
+          taskList.appendChild(li);
+        });
+      }
+
+      async function addTask() {
+        const input = document.getElementById('taskInput');
+        const description = input.value.trim();
+
+        if (!description) {
+          updateStatus('Please enter a task description');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ description: description }),
+          });
+
+          const result = await response.json();
+          if (result.status === 'success') {
+            input.value = '';
+            updateStatus('Task added');
+            loadTasks();
+          } else {
+            updateStatus('Error adding task');
+          }
+        } catch (error) {
+          updateStatus('Error adding task');
+        }
+      }
+
+      async function completeTask(taskId) {
+        try {
+          const response = await fetch(`/api/tasks/${taskId}/complete`, {
+            method: 'PUT',
+          });
+
+          const result = await response.json();
+          if (result.status === 'success') {
+            updateStatus('Task completed');
+            loadTasks();
+          } else {
+            updateStatus('Error completing task');
+          }
+        } catch (error) {
+          updateStatus('Error completing task');
+        }
+      }
+
+      async function deleteTask(taskId) {
+        if (!confirm('Delete this task?')) return;
+
+        try {
+          const response = await fetch(`/api/tasks/${taskId}`, {
+            method: 'DELETE',
+          });
+
+          const result = await response.json();
+          if (result.status === 'success') {
+            updateStatus('Task deleted');
+            loadTasks();
+          } else {
+            updateStatus('Error deleting task');
+          }
+        } catch (error) {
+          updateStatus('Error deleting task');
+        }
+      }
+
+      function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+          addTask();
+        }
+      }
+
+      function updateStatus(message) {
+        const status = document.getElementById('status');
+        status.textContent = message;
+        setTimeout(() => {
+          status.textContent = 'Ready';
+        }, 3000);
+      }
+    </script>
+  </body>
+</html>

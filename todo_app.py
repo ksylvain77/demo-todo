@@ -6,7 +6,7 @@ a todo app
 Entry point for the todo app application.
 """
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 import os
 import sys
 from pathlib import Path
@@ -95,30 +95,24 @@ def health():
 
 @app.route('/')
 def home():
-    """Home endpoint"""
-    status = get_status()
-    return jsonify({
-        "message": "Welcome to todo app",
-        "description": "a todo app",
-        "status": status,
-        "endpoints": {
-            "health": "/health",
-            "home": "/",
-            "api_docs": "/api"
-        }
-    })
+    """Home page with web UI"""
+    return render_template('index.html')
 
 @app.route('/api')
 def api_docs():
     """API documentation endpoint"""
     return jsonify({
         "name": "todo app API",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "description": "a todo app",
         "endpoints": [
-            {"path": "/", "method": "GET", "description": "Home page"},
+            {"path": "/", "method": "GET", "description": "Web UI"},
             {"path": "/health", "method": "GET", "description": "Health check"},
-            {"path": "/api", "method": "GET", "description": "API documentation"}
+            {"path": "/api", "method": "GET", "description": "API documentation"},
+            {"path": "/api/tasks", "method": "GET", "description": "Get all tasks"},
+            {"path": "/api/tasks", "method": "POST", "description": "Add task(s)"},
+            {"path": "/api/tasks/{id}/complete", "method": "PUT", "description": "Complete task"},
+            {"path": "/api/tasks/{id}", "method": "DELETE", "description": "Delete task"}
         ]
     })
 
