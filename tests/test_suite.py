@@ -33,6 +33,43 @@ class TestSuite:
             "phase_3_frontend": {},
             "summary": {"total_tests": 0, "passed": 0, "failed": 0, "errors": []}
         }
+        self.test_data_ids = {}  # Track test data for cleanup
+    
+    def setup_test_data(self):
+        """Create known test data for reliable testing"""
+        try:
+            from modules.core import add_task
+            
+            # Create test tasks with known IDs
+            task_for_completion = add_task("Test task for completion")
+            task_for_deletion = add_task("Test task for deletion")
+            
+            self.test_data_ids = {
+                "complete_test_id": task_for_completion["id"],
+                "delete_test_id": task_for_deletion["id"]
+            }
+            
+            self.log(f"📋 Test data created: complete={self.test_data_ids['complete_test_id']}, delete={self.test_data_ids['delete_test_id']}")
+            
+        except Exception as e:
+            self.log(f"⚠️ Test setup warning: {e}", "WARN")
+    
+    def cleanup_test_data(self):
+        """Clean up test data to prevent interference"""
+        try:
+            from modules.core import delete_task
+            
+            # Clean up any remaining test tasks
+            for task_type, task_id in self.test_data_ids.items():
+                try:
+                    delete_task(task_id)
+                except:
+                    pass  # Task may already be deleted in tests
+                    
+            self.log("🧹 Test data cleanup completed")
+            
+        except Exception as e:
+            self.log(f"⚠️ Cleanup warning: {e}", "WARN")
     
     def log(self, message: str, level: str = "INFO"):
         """Log test message with timestamp"""
@@ -44,6 +81,9 @@ class TestSuite:
         """Phase 1: Test all backend functions directly"""
         self.log("🔬 PHASE 1: BACKEND FUNCTION TESTING", "TEST")
         self.log("=" * 60)
+        
+        # Setup test data first
+        self.setup_test_data()
         
         # DRY configuration - customize for your project
         backend_tests = {
@@ -137,6 +177,13 @@ class TestSuite:
                 module = __import__(test_config['module'], fromlist=[test_config['function']])
                 func = getattr(module, test_config['function'])
                 args = test_config.get('args', [])
+                
+                # Inject dynamic test data for specific tests
+                if test_name == "complete_task_test":
+                    args = [self.test_data_ids["complete_test_id"]]
+                elif test_name == "delete_task_test":
+                    args = [self.test_data_ids["delete_test_id"]]
+                
                 result = func(*args)
                 for assertion in test_config['assertions']:
                     exec(assertion)
@@ -454,6 +501,9 @@ class TestSuite:
         self.phase_2_api_tests()
         self.phase_2_5_contract_validation()
         self.phase_3_frontend_tests()
+        
+        # Cleanup test data
+        self.cleanup_test_data()
         
         # Generate summary
         total, passed, failed = self.generate_summary()
