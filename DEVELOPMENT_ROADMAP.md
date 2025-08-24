@@ -12,7 +12,7 @@
 ### ✅ Option 1: Basic Web Page (DONE)
 
 - ✅ Beautiful HTML page to see and manage tasks
-- ✅ Simple form to add new tasks  
+- ✅ Simple form to add new tasks
 - ✅ Click to mark complete/delete
 - ✅ Real-time updates with JavaScript
 

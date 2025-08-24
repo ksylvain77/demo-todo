@@ -7,8 +7,10 @@ This module contains the core business logic for todo app.
 
 from datetime import datetime
 from typing import Dict, Any, List
-import json
-import os
+from modules.database import TodoDatabase
+
+# Initialize database connection
+db = TodoDatabase()
 
 def get_status() -> Dict[str, Any]:
     """
@@ -17,10 +19,18 @@ def get_status() -> Dict[str, Any]:
     Returns:
         Dict containing app status information
     """
+    db_info = db.get_database_info()
     return {
         "status": "running",
         "service": "todo_app",
-        "version": "0.1.0",
+        "version": "0.2.0",
+        "storage": db_info["storage_type"],
+        "database_path": db_info["database_path"],
+        "tasks": {
+            "total": db_info["total_tasks"],
+            "completed": db_info["completed_tasks"],
+            "pending": db_info["pending_tasks"]
+        },
         "uptime": "active",
         "last_updated": "2025-01-01"
     }
@@ -68,52 +78,35 @@ def input_tasks(task_list: list[str]) -> list[dict[str, Any]]:
     Returns:
         List of task dicts
     """
-    from modules.utils import get_timestamp
     tasks = []
-    for idx, desc in enumerate(task_list, 1):
+    for desc in task_list:
         if validate_input(desc):
-            tasks.append({
-                "id": idx,
-                "description": desc.strip(),
-                "created": get_timestamp(),
-                "completed": False
-            })
+            task = db.add_task(desc.strip())
+            tasks.append(task)
     return tasks
 
 
-TASKS_FILE = "tasks.json"
-
 def save_tasks(tasks: List[Dict[str, Any]]) -> bool:
     """
-    Save tasks list to JSON file
+    Legacy function for compatibility - now uses database
     
     Args:
-        tasks: List of task dictionaries
+        tasks: List of task dictionaries (ignored in new implementation)
         
     Returns:
-        bool: True if saved successfully, False otherwise
+        bool: Always True as database handles persistence
     """
-    try:
-        with open(TASKS_FILE, 'w') as f:
-            json.dump(tasks, f, indent=2)
-        return True
-    except Exception:
-        return False
+    # Database automatically persists data, so this is a no-op
+    return True
 
 def load_tasks() -> List[Dict[str, Any]]:
     """
-    Load tasks from JSON file
+    Load tasks from database
     
     Returns:
-        List of task dictionaries, empty list if file doesn't exist
+        List of task dictionaries from database
     """
-    try:
-        if os.path.exists(TASKS_FILE):
-            with open(TASKS_FILE, 'r') as f:
-                return json.load(f)
-        return []
-    except Exception:
-        return []
+    return db.get_all_tasks()
 
 def add_task(description: str) -> Dict[str, Any]:
     """
@@ -125,20 +118,7 @@ def add_task(description: str) -> Dict[str, Any]:
     Returns:
         The created task dictionary
     """
-    tasks = load_tasks()
-    new_id = max([task.get('id', 0) for task in tasks], default=0) + 1
-    
-    from modules.utils import get_timestamp
-    new_task = {
-        "id": new_id,
-        "description": description.strip(),
-        "created": get_timestamp(),
-        "completed": False
-    }
-    
-    tasks.append(new_task)
-    save_tasks(tasks)
-    return new_task
+    return db.add_task(description.strip())
 
 def complete_task(task_id: int) -> bool:
     """
@@ -150,15 +130,8 @@ def complete_task(task_id: int) -> bool:
     Returns:
         bool: True if task found and completed, False otherwise
     """
-    tasks = load_tasks()
-    for task in tasks:
-        if task.get('id') == task_id:
-            task['completed'] = True
-            from modules.utils import get_timestamp
-            task['completed_at'] = get_timestamp()
-            save_tasks(tasks)
-            return True
-    return False
+    result = db.complete_task(task_id)
+    return result is not None
 
 def delete_task(task_id: int) -> bool:
     """
@@ -170,10 +143,4 @@ def delete_task(task_id: int) -> bool:
     Returns:
         bool: True if task found and deleted, False otherwise
     """
-    tasks = load_tasks()
-    original_length = len(tasks)
-    tasks = [task for task in tasks if task.get('id') != task_id]
-    if len(tasks) < original_length:
-        save_tasks(tasks)
-        return True
-    return False
+    return db.delete_task(task_id)
