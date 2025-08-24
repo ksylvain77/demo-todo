@@ -124,7 +124,7 @@ class TestSuite:
                 "description": "Test delete_task removes task",
                 "module": "modules.core",
                 "function": "delete_task",
-                "args": [21], 
+                "args": [32], 
                 "assertions": [
                     "assert result is True"
                 ]
