@@ -88,6 +88,45 @@ class TestSuite:
                     "assert len(result) == 1",
                     "assert result[0]['description'] == 'Task'"
                 ]
+            },
+            "save_load_tasks": {
+                "description": "Test save_tasks and load_tasks functionality",
+                "module": "modules.core",
+                "function": "save_tasks",
+                "args": [[{"id": 1, "description": "Test task", "completed": False}]],
+                "assertions": [
+                    "assert result is True"
+                ]
+            },
+            "add_task_test": {
+                "description": "Test add_task creates and stores task",
+                "module": "modules.core", 
+                "function": "add_task",
+                "args": ["New test task"],
+                "assertions": [
+                    "assert isinstance(result, dict)",
+                    "assert 'id' in result",
+                    "assert result['description'] == 'New test task'",
+                    "assert result['completed'] is False"
+                ]
+            },
+            "complete_task_test": {
+                "description": "Test complete_task marks task as done",
+                "module": "modules.core",
+                "function": "complete_task", 
+                "args": [1],
+                "assertions": [
+                    "assert result is True"
+                ]
+            },
+            "delete_task_test": {
+                "description": "Test delete_task removes task",
+                "module": "modules.core",
+                "function": "delete_task",
+                "args": [1], 
+                "assertions": [
+                    "assert result is True"
+                ]
             }
         }
         
@@ -130,6 +169,17 @@ class TestSuite:
                 "payload": {"tasks": ["Task A", "Task B"]},
                 "expected_fields": ["status", "timestamp", "data"],
                 "expected_data_length": 2
+            },
+            "get_tasks_endpoint": {
+                "endpoint": "/api/tasks",
+                "method": "GET",
+                "expected_fields": ["status", "timestamp", "data"]
+            },
+            "add_single_task_endpoint": {
+                "endpoint": "/api/tasks",
+                "method": "POST", 
+                "payload": {"description": "API test task"},
+                "expected_fields": ["status", "timestamp", "data"]
             }
         }
         
@@ -196,6 +246,18 @@ class TestSuite:
                 "expected_structure": {
                     "status": "string",
                     "timestamp": "string",
+                    "data": "list"
+                },
+                "frontend_expectations": [
+                    "data.data"
+                ]
+            },
+            "get_tasks_contract": {
+                "api_endpoint": "/api/tasks",
+                "method": "GET",
+                "expected_structure": {
+                    "status": "string",
+                    "timestamp": "string", 
                     "data": "list"
                 },
                 "frontend_expectations": [

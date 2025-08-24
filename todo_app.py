@@ -15,8 +15,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "modules"))
 
 # Import your modules here
-from core import get_status, input_tasks
-from utils import get_timestamp, format_response
+from modules.core import get_status, input_tasks, load_tasks, add_task, complete_task, delete_task
+from modules.utils import get_timestamp, format_response
 from flask import request
 
 app = Flask(__name__)
@@ -24,18 +24,65 @@ app = Flask(__name__)
 @app.route('/api/tasks', methods=['POST'])
 def api_input_tasks():
     """
-    Accepts a JSON list of task descriptions and returns structured tasks.
-    Request body: {"tasks": ["task1", "task2", ...]}
-    Response: {"status": ..., "timestamp": ..., "data": [task_dicts]}
+    Accepts a JSON list of task descriptions OR single task description
+    Request body: {"tasks": ["task1", "task2", ...]} OR {"description": "single task"}
+    Response: {"status": ..., "timestamp": ..., "data": [task_dicts] OR task_dict}
     """
     if not request.is_json:
         return jsonify(format_response("Invalid or missing JSON", status="error")), 400
     data = request.get_json()
-    tasks = data.get("tasks")
-    if not isinstance(tasks, list):
-        return jsonify(format_response("'tasks' must be a list", status="error")), 400
-    result = input_tasks(tasks)
-    return jsonify(format_response(result))
+    
+    # Handle bulk task creation (original functionality)
+    if "tasks" in data:
+        tasks = data.get("tasks")
+        if not isinstance(tasks, list):
+            return jsonify(format_response("'tasks' must be a list", status="error")), 400
+        result = input_tasks(tasks)
+        return jsonify(format_response(result))
+    
+    # Handle single task creation (new functionality)
+    elif "description" in data:
+        description = data.get("description")
+        if not description or not isinstance(description, str) or not description.strip():
+            return jsonify(format_response("'description' is required and must be non-empty", status="error")), 400
+        result = add_task(description)
+        return jsonify(format_response(result))
+    
+    else:
+        return jsonify(format_response("Either 'tasks' or 'description' is required", status="error")), 400
+
+@app.route('/api/tasks', methods=['GET'])
+def api_get_tasks():
+    """
+    Get all saved tasks from persistent storage
+    Response: {"status": ..., "timestamp": ..., "data": [task_dicts]}
+    """
+    tasks = load_tasks()
+    return jsonify(format_response(tasks))
+
+@app.route('/api/tasks/<int:task_id>/complete', methods=['PUT'])
+def api_complete_task(task_id):
+    """
+    Mark a task as completed
+    Response: {"status": ..., "timestamp": ..., "data": success_boolean}
+    """
+    result = complete_task(task_id)
+    if result:
+        return jsonify(format_response({"completed": True}))
+    else:
+        return jsonify(format_response("Task not found", status="error")), 404
+
+@app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
+def api_delete_task(task_id):
+    """
+    Delete a task
+    Response: {"status": ..., "timestamp": ..., "data": success_boolean}
+    """
+    result = delete_task(task_id)
+    if result:
+        return jsonify(format_response({"deleted": True}))
+    else:
+        return jsonify(format_response("Task not found", status="error")), 404
 
 @app.route('/health')
 def health():
